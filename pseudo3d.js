@@ -2,11 +2,11 @@ const symbols = [' ', '▮', 'C'];
 const walls = ['▓', '▒', '░', 'O', '=', ':', '.', ' '];
 
 class World {
-  constructor(map) {
+  constructor(map, camSize, framerate = 15) {
     this.map = map;
-    this.camSize = [160 * 2, 40 * 2];
+    this.camSize = camSize;
     this.camera = new Camera(this.camSize);
-    this.framerate = 15;
+    this.framerate = framerate;
     this.renderer = null;
   }
 
@@ -42,14 +42,13 @@ class World {
       }
     });
 
-    let rawFrame = frame.split('');
-    return this.camera.get3DFrame(rawFrame);
+    return this.camera.get3DFrame(frame);
   }
 }
 
 class Camera {
   constructor(size, world) {
-    this.pos = [50, 15];
+    this.pos = [null, null];
     this.size = size;
 
     this.viewRadius = 500;
@@ -57,7 +56,21 @@ class Camera {
     this.movementCorrection = 2.5 * Math.PI / 1.5;
     this.rotation = - 3 * Math.PI / 4;
 
-    this.frame = null;
+    this.rawFrameArray = null;
+  }
+
+  initPosition() {
+    let y = Math.round(Math.random() * (this.rawFrameArray.length - 1));
+    let x = Math.round(Math.random() * (this.rawFrameArray[0].length - 1));
+    let value = this.rawFrameArray[y][x];
+
+    while (value !== symbols[0]) {
+      y = Math.round(Math.random() * (this.rawFrameArray.length - 1));
+      x = Math.round(Math.random() * (this.rawFrameArray[0].length - 1));
+      value = this.rawFrameArray[y][x];
+    }
+
+    this.pos = [x, y];
   }
 
   move(keyName) {
@@ -66,12 +79,12 @@ class Camera {
     let cos = Math.round(Math.cos(this.rotation - this.movementCorrection) * 1.2);
 
     const changePos = (c, s) => {
-      if (this.frame[x + c + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
+      if (this.rawFrameArray[y + s][x + c] !== symbols[1]) {
         this.pos[0] += c;
         this.pos[1] += s;
-      } else if (this.frame[x + c + y * (this.size[0] + 1)] !== symbols[1]) {
+      } else if (this.rawFrameArray[y][x + c] !== symbols[1]) {
         this.pos[0] += c;
-      } else if (this.frame[x + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
+      } else if (this.rawFrameArray[y + s][x] !== symbols[1]) {
         this.pos[1] += s;
       }
     };
@@ -96,14 +109,18 @@ class Camera {
   }
 
   get3DFrame(rawFrame) {
-    this.frame = [...rawFrame];
+    this.rawFrameArray = rawFrame.split('\n').map(e => [...e]);
+
+    if (this.pos[0] === null) {
+      this.initPosition();
+    }
 
     const [x, y] = this.pos;
     const wallHeight = this.size[1];
     const fovStep = Math.PI / 288; // 576 is good
     const maxIter = this.fov / fovStep;
 
-    let newFrame = rawFrame.map(e => e !== '\n' ? ' ' : '\n').join('').split('\n').map(e => [...e]);
+    let frame = this.rawFrameArray.map(e => e.map(_ => ' '));
     let iter = 0;
 
     for (let angle = 0 + this.rotation; angle <= this.fov + this.rotation; angle += fovStep) {
@@ -124,7 +141,7 @@ class Camera {
       if (absCos > this.viewRadius / 2) {
         for (let i = 0; i <= absCos; i++) {
           let o = i * cosSign;
-          intersection = this.setFrameElement(rawFrame, x + o, y + fnY(o), this.size[0] + 1, ' ', '.');
+          intersection = this.setFrameElement(this.rawFrameArray, x + o, y + fnY(o), ' ', '.');
 
           if (intersection) {
             const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
@@ -144,7 +161,7 @@ class Camera {
               else if (objHeight / wallHeight > 0.1) sym = walls[6];
               else sym = walls[7];
 
-              newFrame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
+              frame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
             }
 
             break;
@@ -153,7 +170,7 @@ class Camera {
       } else {
         for (let i = 0; i <= absSin; i++) {
           let o = i * sinSign;
-          intersection = this.setFrameElement(rawFrame, x + fnX(o), y + o, this.size[0] + 1, ' ', '.');
+          intersection = this.setFrameElement(this.rawFrameArray, x + fnX(o), y + o, ' ', '.');
 
           if (intersection) {
             const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
@@ -173,7 +190,7 @@ class Camera {
               else if (objHeight / wallHeight > 0.1) sym = walls[6];
               else sym = walls[7];
 
-              newFrame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
+              frame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
             }
 
             break;
@@ -184,20 +201,19 @@ class Camera {
       iter++;
     }
 
-    rawFrame[x + y * (this.size[0] + 1)] = symbols[symbols.length - 1];
-    const minimap = rawFrame.join('').split('\n').map(e => e.split('').filter((s, i) => i % 4 === 0).join('')).filter((e, i) => i % 4 === 0).join('\n');
+    const minimap = this.rawFrameArray.map(e => e.filter((s, i) => i % 4 === 0).join('')).filter((e, i) => i % 4 === 0).join('\n');
     console.log(minimap);
-    return newFrame.map(e => e.join('') + '\n').join('');
+    return frame.map(e => e.join('')).join('\n');
   }
 
-  setFrameElement(frameArray, x, y, rowSize, checkVal, val) {
-    let oldVal = frameArray[x + y * rowSize];
+  setFrameElement(frameArray, x, y, checkVal, val) {
+    let oldVal = frameArray[y][x];
 
     if (oldVal !== checkVal && oldVal !== val) {
       return true;
     }
 
-    frameArray[x + y * rowSize] = val;
+    frameArray[y][x] = val;
     return false;
   }
 }

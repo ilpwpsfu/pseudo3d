@@ -23,7 +23,7 @@ const map = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-const world = new World(map);
+const world = new World(map, [160 * 2, 40 * 2]);
 
 
 process.stdin.on('keypress', (str, key) => {

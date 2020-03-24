@@ -138,72 +138,58 @@ class Camera {
 
       let intersection = false;
 
+      const castARay = (iLimit, limitSign, fn, isSin = false) => {
+        let intersection = false;
+
+        for (let i = 0; i <= iLimit; i++) {
+          let o = i * limitSign;
+          let w = isSin ? x + fn(o) : x + o;
+          let h = isSin ? y + o : y + fn(o);
+
+          intersection = this.setFrameElement(this.rawFrameArray, w, h, ' ', '.');
+
+          if (intersection) {
+            const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
+            const distance = Math.pow(fn(i)*fn(i) + i*i, 1/2);
+            let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
+            objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
+
+            for (let h = 0; h <= objHeight; h++) {
+              let sym = ' ';
+
+              if      (objHeight / wallHeight > 0.9) sym = walls[0];
+              else if (objHeight / wallHeight > 0.7) sym = walls[1];
+              else if (objHeight / wallHeight > 0.5) sym = walls[2];
+              else if (objHeight / wallHeight > 0.4) sym = walls[3];
+              else if (objHeight / wallHeight > 0.3) sym = walls[4];
+              else if (objHeight / wallHeight > 0.2) sym = walls[5];
+              else if (objHeight / wallHeight > 0.1) sym = walls[6];
+              else sym = walls[7];
+
+              frame[h + Math.round((wallHeight - objHeight) / 2)][column] = sym;
+            }
+
+            break;
+          }
+        }
+      }
+
       if (absCos > this.viewRadius / 2) {
-        for (let i = 0; i <= absCos; i++) {
-          let o = i * cosSign;
-          intersection = this.setFrameElement(this.rawFrameArray, x + o, y + fnY(o), ' ', '.');
-
-          if (intersection) {
-            const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
-            const distance = Math.pow(fnY(i)*fnY(i) + i*i, 1/2);
-            let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
-            objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
-
-            for (let h = 0; h <= objHeight; h++) {
-              let sym = ' ';
-
-              if (objHeight / wallHeight > 0.9) sym = walls[0];
-              else if (objHeight / wallHeight > 0.7) sym = walls[1];
-              else if (objHeight / wallHeight > 0.5) sym = walls[2];
-              else if (objHeight / wallHeight > 0.4) sym = walls[3];
-              else if (objHeight / wallHeight > 0.3) sym = walls[4];
-              else if (objHeight / wallHeight > 0.2) sym = walls[5];
-              else if (objHeight / wallHeight > 0.1) sym = walls[6];
-              else sym = walls[7];
-
-              frame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
-            }
-
-            break;
-          };
-        }
+        castARay(absCos, cosSign, fnY);
       } else {
-        for (let i = 0; i <= absSin; i++) {
-          let o = i * sinSign;
-          intersection = this.setFrameElement(this.rawFrameArray, x + fnX(o), y + o, ' ', '.');
-
-          if (intersection) {
-            const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
-            const distance = Math.pow(fnX(i)*fnX(i) + i*i, 1/2);
-            let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
-            objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
-
-            for (let h = 0; h <= objHeight; h++) {
-              let sym = ' ';
-
-              if (objHeight / wallHeight > 0.9) sym = walls[0];
-              else if (objHeight / wallHeight > 0.7) sym = walls[1];
-              else if (objHeight / wallHeight > 0.5) sym = walls[2];
-              else if (objHeight / wallHeight > 0.4) sym = walls[3];
-              else if (objHeight / wallHeight > 0.3) sym = walls[4];
-              else if (objHeight / wallHeight > 0.2) sym = walls[5];
-              else if (objHeight / wallHeight > 0.1) sym = walls[6];
-              else sym = walls[7];
-
-              frame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
-            }
-
-            break;
-          };
-        }
+        castARay(absSin, sinSign, fnX, true);
       }
 
       iter++;
     }
 
+    this.renderMinimap();
+    return frame.map(e => e.join('')).join('\n');
+  }
+
+  renderMinimap() {
     const minimap = this.rawFrameArray.map(e => e.filter((s, i) => i % 4 === 0).join('')).filter((e, i) => i % 4 === 0).join('\n');
     console.log(minimap);
-    return frame.map(e => e.join('')).join('\n');
   }
 
   setFrameElement(frameArray, x, y, checkVal, val) {

@@ -4,11 +4,25 @@ const walls = ['▓', '▒', '░', 'O', '=', ':', '.', ' '];
 class World {
   constructor(map) {
     this.map = map;
-    this.camSize = [160, 40];
-    this.user = new Camera;
+    this.camSize = [160 * 2, 40 * 2];
+    this.camera = new Camera(this.camSize);
+    this.renderer = null;
   }
 
-  generateFrame(keyName, flat = true) {
+  startRendering() {
+    if (this.renderer !== null) return;
+
+    this.renderer = setInterval(() => {
+      console.clear();
+      console.log(this.generateFrame());
+    }, 1000 / 15);
+  }
+
+  stopRendering() {
+    this.renderer = null;
+  }
+
+  generateFrame() {
     const heightOfARow = this.camSize[1] / this.map.length;
     const widthOfAnElement = this.camSize[0] / this.map[0].length;
     let frame = '';
@@ -27,31 +41,32 @@ class World {
       }
     });
 
-    let frameWithoutCamera = frame.split('');
-    return this.user.move(keyName, frameWithoutCamera, flat);
+    let rawFrame = frame.split('');
+    return this.camera.get3DFrame(rawFrame);
   }
 }
 
 class Camera {
-  constructor() {
+  constructor(size, world) {
     this.pos = [50, 15];
-    this.size = [160, 40];
-    this.viewRadius = 100;
+    this.size = size;
+    this.viewRadius = 500;
     this.rotation = - 3 * Math.PI / 4;
+    this.frame = null;
   }
 
-  move(keyName, frameArray, flat) {
+  move(keyName) {
     let [x, y] = this.pos;
-    let sin = Math.round(Math.sin(this.rotation - 2.5 * Math.PI / 1.5) * 1.5);
-    let cos = Math.round(Math.cos(this.rotation - 2.5 * Math.PI / 1.5) * 1.5);
+    let sin = Math.round(Math.sin(this.rotation - 2.5 * Math.PI / 1.5) * 1.1);
+    let cos = Math.round(Math.cos(this.rotation - 2.5 * Math.PI / 1.5) * 1.1);
 
     const changePos = (c, s) => {
-      if (frameArray[x + c + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
+      if (this.frame[x + c + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
         this.pos[0] += c;
         this.pos[1] += s;
-      } else if (frameArray[x + c + y * (this.size[0] + 1)] !== symbols[1]) {
+      } else if (this.frame[x + c + y * (this.size[0] + 1)] !== symbols[1]) {
         this.pos[0] += c;
-      } else if (frameArray[x + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
+      } else if (this.frame[x + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
         this.pos[1] += s;
       }
     };
@@ -66,21 +81,11 @@ class Camera {
     else if (keyName === 's') changePos(-cos, -sin); 
     else if (keyName === 'd') changePos(-sin, cos);
     else if (keyName === 'a') changePos(sin, -cos);
-   
-    [x, y] = this.pos;
-
-    if (flat) {
-      const frameArrayWithFOV = this.fieldOfView2D([...frameArray]);
-
-      frameArrayWithFOV[x + y * (this.size[0] + 1)] = symbols[symbols.length - 1];
-
-      return frameArrayWithFOV.join('');
-    }
-
-    return this.get3DFrame([...frameArray]).join('');
   }
 
   get3DFrame(rawFrame) {
+    this.frame = [...rawFrame];
+
     const [x, y] = this.pos;
     const wallHeight = this.size[1];
     let newFrame = rawFrame.map(e => e !== '\n' ? ' ' : '\n').join('').split('\n').map(e => [...e]);
@@ -107,7 +112,7 @@ class Camera {
           intersection = this.setFrameElement(rawFrame, x + o, y + fnY(o), this.size[0] + 1, ' ', '.');
 
           if (intersection) {
-            const column = Math.round((iter * 160) / 288); // 192 for 120 FOV and pi / 288 per i
+            const column = Math.round((iter * this.size[0]) / 288); // 192 for 120 FOV and pi / 288 per i
             const distance = Math.pow(fnY(i)*fnY(i) + i*i, 1/2);
             let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
             objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
@@ -136,7 +141,7 @@ class Camera {
           intersection = this.setFrameElement(rawFrame, x + fnX(o), y + o, this.size[0] + 1, ' ', '.');
 
           if (intersection) {
-            const column = Math.round((iter * 160) / 288); // 192 for 120 FOV and pi / 288 per i
+            const column = Math.round((iter * this.size[0]) / 288); // 192 for 120 FOV and pi / 288 per i
             const distance = Math.pow(fnX(i)*fnX(i) + i*i, 1/2);
             let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
             objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
@@ -164,49 +169,9 @@ class Camera {
       iter++;
     }
 
-    console.log(rawFrame.join(''))
-    return newFrame.map(e => e.join('') + '\n');
-  }
-
-  fieldOfView2D(frameArray) {
-    let [x, y] = this.pos;
-
-    for (let angle = 0 + this.rotation; angle <= Math.PI / 2 + this.rotation; angle += Math.PI / 144) {
-      const cos = Math.round(Math.cos(angle) * this.viewRadius);
-      const sin = Math.round(Math.sin(angle) * this.viewRadius);
-      const fnY = (o) => {
-        return Math.round(o * (sin / cos)); // y = (sin / cos) * x
-      }
-      const fnX = (o) => {
-        return Math.round(o * (cos / sin)); // y = (sin / cos) * x
-      }
-
-      let absCos = Math.abs(cos);
-      let absSin = Math.abs(sin);
-
-      let cosSign = cos / absCos;
-      let sinSign = sin / absSin;
-
-      let intersection = false;
-
-      if (absCos > this.viewRadius / 2) {
-        for (let i = 0; i <= absCos; i++) {
-          let o = i * cosSign;
-          intersection = this.setFrameElement(frameArray, x + o, y + fnY(o), this.size[0] + 1, ' ', '.');
-
-          if (intersection) break;
-        }
-      } else {
-        for (let i = 0; i <= absSin; i++) {
-          let o = i * sinSign;
-          intersection = this.setFrameElement(frameArray, x + fnX(o), y + o, this.size[0] + 1, ' ', '.');
-
-          if (intersection) break;
-        }
-      }
-    }
-
-    return frameArray;
+    rawFrame[x + y * (this.size[0] + 1)] = symbols[symbols.length - 1];
+    // console.log(rawFrame.join(''))
+    return newFrame.map(e => e.join('') + '\n').join('');
   }
 
   setFrameElement(frameArray, x, y, rowSize, checkVal, val) {

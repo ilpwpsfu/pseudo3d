@@ -5,7 +5,7 @@ class World {
   constructor(map, camSize, framerate = 15) {
     this.map = map;
     this.camSize = camSize;
-    this.camera = new Camera(this.camSize);
+    this.camera = new Camera(camSize);
     this.framerate = framerate;
     this.renderer = null;
   }
@@ -47,7 +47,7 @@ class World {
 }
 
 class Camera {
-  constructor(size, world) {
+  constructor(size) {
     this.pos = [null, null];
     this.size = size;
 

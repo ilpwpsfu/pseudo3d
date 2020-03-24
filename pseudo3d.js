@@ -1,5 +1,5 @@
 const symbols = [' ', '▮', 'C'];
-const walls = ['▓', '▒', '░', ':', '.'];
+const walls = ['▓', '▒', '░', 'O', '=', ':', '.', ' '];
 
 class World {
   constructor(map) {
@@ -115,11 +115,14 @@ class Camera {
             for (let h = 0; h <= objHeight; h++) {
               let sym = ' ';
 
-              if (objHeight / wallHeight > 0.8) sym = walls[0];
-              else if (objHeight / wallHeight > 0.6) sym = walls[1];
-              else if (objHeight / wallHeight > 0.4) sym = walls[2];
-              else if (objHeight / wallHeight > 0.2) sym = walls[3];
-              else sym = walls[4];
+              if (objHeight / wallHeight > 0.9) sym = walls[0];
+              else if (objHeight / wallHeight > 0.7) sym = walls[1];
+              else if (objHeight / wallHeight > 0.5) sym = walls[2];
+              else if (objHeight / wallHeight > 0.4) sym = walls[3];
+              else if (objHeight / wallHeight > 0.3) sym = walls[4];
+              else if (objHeight / wallHeight > 0.2) sym = walls[5];
+              else if (objHeight / wallHeight > 0.1) sym = walls[6];
+              else sym = walls[7];
 
               newFrame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
             }
@@ -141,11 +144,14 @@ class Camera {
             for (let h = 0; h <= objHeight; h++) {
               let sym = ' ';
 
-              if (objHeight / wallHeight > 0.8) sym = walls[0];
-              else if (objHeight / wallHeight > 0.6) sym = walls[1];
-              else if (objHeight / wallHeight > 0.4) sym = walls[2];
-              else if (objHeight / wallHeight > 0.2) sym = walls[3];
-              else sym = walls[4];
+              if (objHeight / wallHeight > 0.9) sym = walls[0];
+              else if (objHeight / wallHeight > 0.7) sym = walls[1];
+              else if (objHeight / wallHeight > 0.5) sym = walls[2];
+              else if (objHeight / wallHeight > 0.4) sym = walls[3];
+              else if (objHeight / wallHeight > 0.3) sym = walls[4];
+              else if (objHeight / wallHeight > 0.2) sym = walls[5];
+              else if (objHeight / wallHeight > 0.1) sym = walls[6];
+              else sym = walls[7];
 
               newFrame[h + Math.round((wallHeight - objHeight)/2)][column] = sym;
             }

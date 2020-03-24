@@ -6,6 +6,7 @@ class World {
     this.map = map;
     this.camSize = [160 * 2, 40 * 2];
     this.camera = new Camera(this.camSize);
+    this.framerate = 15;
     this.renderer = null;
   }
 
@@ -15,7 +16,7 @@ class World {
     this.renderer = setInterval(() => {
       console.clear();
       console.log(this.generateFrame());
-    }, 1000 / 15);
+    }, 1000 / this.framerate);
   }
 
   stopRendering() {
@@ -50,15 +51,19 @@ class Camera {
   constructor(size, world) {
     this.pos = [50, 15];
     this.size = size;
+
     this.viewRadius = 500;
+    this.fov = Math.PI / 2;
+    this.movementCorrection = 2.5 * Math.PI / 1.5;
     this.rotation = - 3 * Math.PI / 4;
+
     this.frame = null;
   }
 
   move(keyName) {
     let [x, y] = this.pos;
-    let sin = Math.round(Math.sin(this.rotation - 2.5 * Math.PI / 1.5) * 1.1);
-    let cos = Math.round(Math.cos(this.rotation - 2.5 * Math.PI / 1.5) * 1.1);
+    let sin = Math.round(Math.sin(this.rotation - this.movementCorrection) * 1.2);
+    let cos = Math.round(Math.cos(this.rotation - this.movementCorrection) * 1.2);
 
     const changePos = (c, s) => {
       if (this.frame[x + c + (y + s) * (this.size[0] + 1)] !== symbols[1]) {
@@ -71,12 +76,19 @@ class Camera {
       }
     };
 
-    if (keyName === 'q') {
-      this.rotation -= Math.PI / 36;
-    } else if (keyName === 'e') {
-      this.rotation += Math.PI / 36;
-    }
+    // Rotation and FOV control
+    if      (keyName === 'q') this.rotation -= Math.PI / 36;
+    else if (keyName === 'e') this.rotation += Math.PI / 36;
+    else if (keyName === 'o') this.fov -= Math.PI / 18;
+    else if (keyName === 'p') this.fov += Math.PI / 18;
+    else if (keyName === 'i') this.fov = Math.PI / 2;
 
+    // View radius control
+    else if (keyName === 'k') this.viewRadius -= 10;
+    else if (keyName === 'l') this.viewRadius += 10;
+    else if (keyName === 'j') this.viewRadius = 500;
+
+    // Movement control
     else if (keyName === 'w') changePos(cos, sin);
     else if (keyName === 's') changePos(-cos, -sin); 
     else if (keyName === 'd') changePos(-sin, cos);
@@ -88,10 +100,13 @@ class Camera {
 
     const [x, y] = this.pos;
     const wallHeight = this.size[1];
+    const fovStep = Math.PI / 288; // 576 is good
+    const maxIter = this.fov / fovStep;
+
     let newFrame = rawFrame.map(e => e !== '\n' ? ' ' : '\n').join('').split('\n').map(e => [...e]);
     let iter = 0;
 
-    for (let angle = 0 + this.rotation; angle <= Math.PI / 2 + this.rotation; angle += Math.PI / 576) {
+    for (let angle = 0 + this.rotation; angle <= this.fov + this.rotation; angle += fovStep) {
       const cos = Math.round(Math.cos(angle) * this.viewRadius);
       const sin = Math.round(Math.sin(angle) * this.viewRadius);
 
@@ -112,7 +127,7 @@ class Camera {
           intersection = this.setFrameElement(rawFrame, x + o, y + fnY(o), this.size[0] + 1, ' ', '.');
 
           if (intersection) {
-            const column = Math.round((iter * this.size[0]) / 288); // 192 for 120 FOV and pi / 288 per i
+            const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
             const distance = Math.pow(fnY(i)*fnY(i) + i*i, 1/2);
             let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
             objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
@@ -141,7 +156,7 @@ class Camera {
           intersection = this.setFrameElement(rawFrame, x + fnX(o), y + o, this.size[0] + 1, ' ', '.');
 
           if (intersection) {
-            const column = Math.round((iter * this.size[0]) / 288); // 192 for 120 FOV and pi / 288 per i
+            const column = Math.round((iter * this.size[0]) / maxIter); // 192 for 120 FOV and pi / 288 per i
             const distance = Math.pow(fnX(i)*fnX(i) + i*i, 1/2);
             let objHeight = distance > 0 ? Math.round((10 / distance) * wallHeight) : wallHeight;
             objHeight = objHeight > this.size[1] ? this.size[1] : objHeight;
@@ -170,7 +185,8 @@ class Camera {
     }
 
     rawFrame[x + y * (this.size[0] + 1)] = symbols[symbols.length - 1];
-    // console.log(rawFrame.join(''))
+    const minimap = rawFrame.join('').split('\n').map(e => e.split('').filter((s, i) => i % 4 === 0).join('')).filter((e, i) => i % 4 === 0).join('\n');
+    console.log(minimap);
     return newFrame.map(e => e.join('') + '\n').join('');
   }
 
